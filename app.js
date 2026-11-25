@@ -154,7 +154,8 @@ function renderBalances(exps) {
     <h2>💸 מי מעביר למי</h2>
     <div class="card">${xf.length ? xf.map(t => `
       <div class="xfer"><b>${esc(nameOf(t.from))}</b> ← <b>${esc(nameOf(t.to))}</b><span class="amt">${fmt(t.amount)}</span></div>`).join('')
-      : '<div class="empty" style="padding:16px">כולם מאוזנים 🎉</div>'}</div>
+      : '<div class="empty" style="padding:16px">כולם מאוזנים 🎉</div>'}
+      ${xf.length ? '<div class="actions"><button class="btn ghost grow" id="shareWa">שלח לקבוצה בוואטסאפ 📲</button></div>' : ''}</div>
     <h2>📊 מאזן לכל אחד</h2>
     <div class="card">${rows.map(r => `
       <div class="row"><span>${esc(nameOf(r.id))}</span>
@@ -164,6 +165,11 @@ function renderBalances(exps) {
       <div class="hint" style="margin-top:0">אחרי שכולם העבירו את הכסף – סוגרים את הסבב. ההוצאות והחישוב נשמרים בהיסטוריה, והחברים נשארים.</div>
       <div class="actions"><button class="btn danger grow" id="closeRound" ${exps.length ? '' : 'disabled'}>סגור סבב ${S.meta.round} והתחל חדש</button></div>
     </div>`;
+  const wa = $('shareWa');
+  if (wa) wa.onclick = () => {
+    const text = `🌴 חשבון אילת – סבב ${S.meta.round}\n` + xf.map(t => `${nameOf(t.from)} ← ${nameOf(t.to)}: ${fmt(t.amount)}`).join('\n') + `\n\n${location.href}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+  };
   const btn = $('closeRound');
   if (btn) btn.onclick = () => {
     if (!confirm(`לסגור את סבב ${S.meta.round}? כל היתרות יתאפסו (ההיסטוריה נשמרת).`)) return;
