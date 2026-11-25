@@ -1,4 +1,4 @@
-import { firebaseConfig } from './config.js';
+import { firebaseConfig, supabaseConfig } from './config.js';
 
 // ---------- helpers (money is stored in agorot, integers) ----------
 const toAg = v => Math.round(parseFloat(String(v).replace(',', '.')) * 100);
@@ -84,10 +84,54 @@ function localBackend() {
   };
 }
 
+// Supabase: table eilat.items (kind, id, data jsonb) via public.eilat_* RPCs — see supabase.sql
+async function supabaseBackend() {
+  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/+esm');
+  const sb = createClient(supabaseConfig.url, supabaseConfig.key);
+  const rows = new Map(); let cb = () => {};
+  const key = (k, i) => k + ':' + i;
+  const emit = () => {
+    const of = k => [...rows.values()].filter(r => r.kind === k).map(r => ({ id: r.id, ...r.data }));
+    cb({ people: of('person'), expenses: of('expense'), meta: rows.get('meta:state')?.data ?? { round: 1, rounds: [] } });
+  };
+  const onErr = e => { console.error(e); toast('שגיאת שמירה – בדקו חיבור'); };
+  async function load() {
+    const { data, error } = await sb.rpc('eilat_list');
+    if (error) return onErr(error);
+    rows.clear(); data.forEach(r => rows.set(key(r.kind, r.id), r)); emit();
+  }
+  sb.channel('eilat-items').on('postgres_changes', { event: '*', schema: 'eilat', table: 'items' }, p => {
+    if (p.eventType === 'DELETE') rows.delete(key(p.old.kind, p.old.id));
+    else rows.set(key(p.new.kind, p.new.id), p.new);
+    emit();
+  }).subscribe(s => { if (s === 'SUBSCRIBED') load(); });
+  await load();
+  addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  addEventListener('online', load);
+  setInterval(load, 30000);
+  const put = (kind, id, data) => { rows.set(key(kind, id), { kind, id, data }); emit();
+    sb.rpc('eilat_put', { p_kind: kind, p_id: id, p_data: data }).then(({ error }) => error && onErr(error)); };
+  const del = (kind, id) => { rows.delete(key(kind, id)); emit();
+    sb.rpc('eilat_del', { p_kind: kind, p_id: id }).then(({ error }) => error && onErr(error)); };
+  const strip = ({ id, ...rest }) => rest;
+  const get = (kind, id) => rows.get(key(kind, id))?.data;
+  return {
+    local: false,
+    subscribe(f) { cb = f; emit(); },
+    addPerson: name => put('person', crypto.randomUUID(), { name, hidden: false, createdAt: Date.now() }),
+    updatePerson: (id, d) => put('person', id, { ...get('person', id), ...d }),
+    deletePerson: id => del('person', id),
+    saveExpense: (id, d) => put('expense', id || crypto.randomUUID(), strip({ id, ...d })),
+    deleteExpense: id => del('expense', id),
+    setMeta: m => put('meta', 'state', m),
+  };
+}
+
 // ---------- app ----------
+const useSupabase = supabaseConfig?.url && supabaseConfig?.key;
 const useFirebase = firebaseConfig?.apiKey && !firebaseConfig.apiKey.startsWith('PASTE');
 let be;
-try { be = useFirebase ? await firebaseBackend() : localBackend(); }
+try { be = useSupabase ? await supabaseBackend() : useFirebase ? await firebaseBackend() : localBackend(); }
 catch (e) { console.error(e); be = localBackend(); toast('לא הצלחתי להתחבר – מצב מקומי'); }
 $('localBanner').hidden = !be.local;
 
