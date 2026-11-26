@@ -381,3 +381,4 @@ function openExpense(exp) {
   drawSplit();
   $('dlg').showModal();
 }
+

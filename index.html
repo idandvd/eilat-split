@@ -7,6 +7,7 @@
 <title>חשבון אילת</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="חשבון אילת">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,6 +82,7 @@ details{margin-top:6px}summary{cursor:pointer;color:var(--sea);font-size:14px}
 <header>
   <h1>🌴 חשבון אילת</h1>
   <div class="sub"><span class="dot" id="dot"></span><span id="sub">טוען…</span></div>
+  <button id="installBtn" hidden style="margin-top:10px;background:#fff;color:#0e7c86;border:0;border-radius:99px;padding:7px 14px;font:inherit;font-size:14px;font-weight:500">📲 התקן כאפליקציה</button>
 </header>
 <div class="banner" id="localBanner" hidden>מצב בדיקה מקומי – הנתונים נשמרים רק במכשיר הזה</div>
 <nav>
@@ -98,6 +100,13 @@ details{margin-top:6px}summary{cursor:pointer;color:var(--sea);font-size:14px}
 <button class="fab" id="fab">+ הוצאה חדשה</button>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <div class="toast" id="toast"></div>
+<script>
+let installEvt = null;
+const ib = () => document.getElementById('installBtn');
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; ib().hidden = false; });
+addEventListener('appinstalled', () => { ib().hidden = true; alert('הותקן! חפשו "חשבון אילת" במסך הבית'); });
+ib().onclick = async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; ib().hidden = true; };
+</script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
