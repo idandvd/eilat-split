@@ -294,9 +294,10 @@ function openExpense(exp) {
     payer: exp?.payer || (all.some(p => p.id === lsGet('eilat-me')) ? lsGet('eilat-me') : all[0].id),
     total: exp ? String(exp.total / 100) : '',
     mode: exp?.mode || 'equal',
-    sel: new Set(exp ? Object.keys(exp.shares) : all.map(p => p.id)),
+    sel: null, touched: !!exp,
     custom: Object.fromEntries(all.map(p => [p.id, exp && exp.shares[p.id] != null && exp.mode === 'custom' ? String(exp.shares[p.id] / 100) : ''])),
   };
+  f.sel = new Set(exp ? Object.keys(exp.shares) : [f.payer]);
   const body = $('dlgBody');
   body.innerHTML = `
     <h3>${exp ? 'עריכת הוצאה' : 'הוצאה חדשה'}</h3>
@@ -320,9 +321,9 @@ function openExpense(exp) {
       area.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="hint" style="margin:0">בין מי מתחלק?</span>
         <span><button class="linkbtn" id="selAll">כולם</button><button class="linkbtn" id="selNone">אף אחד</button></span></div>
         <div class="chips">${all.map(p => `<button class="chip ${f.sel.has(p.id) ? 'on' : ''}" data-p="${p.id}">${esc(p.name)}</button>`).join('')}</div>`;
-      area.querySelectorAll('.chip').forEach(c => c.onclick = () => { f.sel.has(c.dataset.p) ? f.sel.delete(c.dataset.p) : f.sel.add(c.dataset.p); drawSplit(); });
-      $('selAll').onclick = () => { all.forEach(p => f.sel.add(p.id)); drawSplit(); };
-      $('selNone').onclick = () => { f.sel.clear(); drawSplit(); };
+      area.querySelectorAll('.chip').forEach(c => c.onclick = () => { f.touched = true; f.sel.has(c.dataset.p) ? f.sel.delete(c.dataset.p) : f.sel.add(c.dataset.p); drawSplit(); });
+      $('selAll').onclick = () => { f.touched = true; all.forEach(p => f.sel.add(p.id)); drawSplit(); };
+      $('selNone').onclick = () => { f.touched = true; f.sel.clear(); drawSplit(); };
     } else {
       area.innerHTML = `<div class="hint">כמה כל אחד צריך לשלם (משאירים ריק למי שלא השתתף):</div>` +
         all.map(p => `<div class="custom-row"><span>${esc(p.name)}</span><input inputmode="decimal" data-c="${p.id}" placeholder="0" value="${esc(f.custom[p.id])}"></div>`).join('');
@@ -365,6 +366,7 @@ function openExpense(exp) {
     f.mode = b.dataset.m; drawSplit();
   });
   $('fTotal').oninput = validate;
+  $('fPayer').onchange = () => { f.payer = $('fPayer').value; if (!f.touched) { f.sel = new Set([f.payer]); if (f.mode === 'equal') drawSplit(); } };
   $('fSave').onclick = () => {
     const r = compute(); if (r.err) return;
     const payer = $('fPayer').value; lsSet('eilat-me', payer);
